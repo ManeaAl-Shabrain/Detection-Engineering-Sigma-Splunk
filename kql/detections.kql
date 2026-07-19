@@ -1,0 +1,76 @@
+// ====================================================================
+//  KQL detections  -  converted from ../rules/*.yml   (bonus track)
+// ====================================================================
+//  Equivalent to:  sigma convert -t kusto rules/
+//  Two platforms are referenced because the data lives in different tables:
+//    [MDE]      Microsoft Defender for Endpoint - Advanced Hunting
+//               (DeviceProcessEvents, DeviceRegistryEvents, DeviceLogonEvents)
+//    [Sentinel] Microsoft Sentinel - Windows Security Events via AMA
+//               (SecurityEvent table)
+//  Each block is labelled with the table it targets.
+// ====================================================================
+
+
+// [1] T1059.001  Encoded PowerShell            [MDE]
+DeviceProcessEvents
+| where FileName in~ ("powershell.exe", "pwsh.exe")
+| where ProcessCommandLine has_any (" -enc ", " -encodedcommand ", " -ec ", " -e ")
+| project Timestamp, DeviceName, AccountName, InitiatingProcessFileName, ProcessCommandLine
+
+
+// [2] T1547.001  Registry Run-Key Persistence  [MDE]
+DeviceRegistryEvents
+| where ActionType in ("RegistryValueSet", "RegistryKeyCreated")
+| where RegistryKey has_any (@"CurrentVersion\Run", @"CurrentVersion\RunOnce",
+                             @"CurrentVersion\RunServices", @"Policies\Explorer\Run")
+| project Timestamp, DeviceName, InitiatingProcessFileName, RegistryKey, RegistryValueName, RegistryValueData
+
+
+// [3] T1003.001  LSASS Credential Access        [MDE]
+// Advanced Hunting has no direct LSASS-handle table, so detect the common
+// dumping techniques behaviourally. The Sysmon EID 10 rule (SPL) is authoritative.
+DeviceProcessEvents
+| where (FileName =~ "rundll32.exe" and ProcessCommandLine has "comsvcs" and ProcessCommandLine has "MiniDump")
+     or (FileName =~ "procdump.exe" and ProcessCommandLine has "lsass")
+     or (ProcessCommandLine has "lsass" and ProcessCommandLine has_any ("MiniDump", "-ma "))
+| project Timestamp, DeviceName, AccountName, InitiatingProcessFileName, FileName, ProcessCommandLine
+
+
+// [4] T1053.005  Scheduled Task Creation        [MDE]
+DeviceProcessEvents
+| where FileName =~ "schtasks.exe" and ProcessCommandLine has "/create"
+| where ProcessCommandLine has_any (@"\AppData\", @"\Users\Public\", @"\Temp\",
+        "powershell", "cmd /c", "mshta", "rundll32", "regsvr32", "-enc")
+| project Timestamp, DeviceName, AccountName, InitiatingProcessFileName, ProcessCommandLine
+
+
+// [5] T1136.001  Local Account Created          [Sentinel]
+// Account creation is a directory event, not an endpoint event -> SecurityEvent.
+SecurityEvent
+| where EventID == 4720
+| project TimeGenerated, Computer, TargetAccount, SubjectAccount
+
+
+// [6] T1490  Inhibit System Recovery            [MDE]
+DeviceProcessEvents
+| where (FileName in~ ("vssadmin.exe", "wmic.exe") and ProcessCommandLine has "delete" and ProcessCommandLine has "shadow")
+     or (FileName =~ "vssadmin.exe" and ProcessCommandLine has "resize" and ProcessCommandLine has "shadowstorage")
+     or (FileName =~ "wbadmin.exe"  and ProcessCommandLine has "delete" and ProcessCommandLine has "catalog")
+     or (FileName =~ "bcdedit.exe"  and ProcessCommandLine has_any ("recoveryenabled no", "ignoreallfailures"))
+| project Timestamp, DeviceName, AccountName, ProcessCommandLine
+
+
+// [7] T1218  LOLBin Proxy Execution             [MDE]
+DeviceProcessEvents
+| where (FileName =~ "certutil.exe" and ProcessCommandLine has_any ("urlcache", "verifyctl", "-decode", "-encode", "split"))
+     or (FileName =~ "regsvr32.exe" and ProcessCommandLine has_any ("scrobj", "/i:http", "/i:ftp", ".sct"))
+     or (FileName =~ "rundll32.exe" and ProcessCommandLine has_any ("javascript:", "vbscript:", "mshtml", "url.dll,OpenURL", "Control_RunDLL http"))
+| project Timestamp, DeviceName, InitiatingProcessFileName, FileName, ProcessCommandLine
+
+
+// [8] T1110  Brute Force (failed-logon burst)   [MDE]
+DeviceLogonEvents
+| where ActionType == "LogonFailed"
+| summarize failures = count(), targeted_users = make_set(AccountName, 10) by RemoteIP, bin(Timestamp, 5m)
+| where failures >= 5
+| sort by failures desc

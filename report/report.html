@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Detection Engineering Report</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm 24mm 18mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 10.8pt; line-height: 1.5; color: #1c1c1c; margin: 0;
+  }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; color: #14304c; line-height: 1.25; }
+  h2 { font-size: 15pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1.5px solid #14304c; }
+  h3 { font-size: 12.2pt; margin: 16px 0 4px; color: #1c3f60; }
+  p { margin: 7px 0; text-align: justify; }
+  a { color: #14304c; }
+  code, pre { font-family: "Consolas", "SFMono-Regular", Menlo, monospace; }
+  code { background: #f2f4f7; padding: 1px 4px; border-radius: 3px; font-size: 9.2pt; }
+  pre {
+    background: #f7f8fa; border: 1px solid #d9dee5; border-left: 3px solid #14304c;
+    border-radius: 3px; padding: 9px 12px; font-size: 8.7pt; line-height: 1.42;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  pre .c { color: #6a737d; }        /* comment */
+  pre .k { color: #14304c; font-weight: bold; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 9.4pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #c9d0d8; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #14304c; color: #fff; font-family: Georgia, serif; font-weight: bold; }
+  tbody tr:nth-child(even) { background: #f4f6f9; }
+  .det { color: #1d7a3a; font-weight: bold; }
+  .prev { color: #9a6a00; font-weight: bold; }
+  figure { margin: 12px 0 14px; page-break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #cfd6de; border-radius: 2px; }
+  figcaption { font-size: 8.6pt; color: #555; font-style: italic; text-align: center; margin-top: 4px; }
+  ul, ol { margin: 6px 0 6px 4px; padding-left: 20px; }
+  li { margin: 3px 0; }
+  blockquote { margin: 8px 0; padding: 6px 12px; background: #f4f6f9; border-left: 3px solid #8896a6;
+    font-size: 10pt; color: #34404e; }
+  .lead { font-size: 11pt; }
+  /* ---- title page ---- */
+  .cover { height: 247mm; display: flex; flex-direction: column; justify-content: center;
+    page-break-after: always; text-align: center; }
+  .cover .kicker { letter-spacing: 3px; text-transform: uppercase; font-size: 10pt; color: #5a6b7d;
+    font-family: Arial, sans-serif; margin-bottom: 18px; }
+  .cover h1 { font-size: 30pt; color: #14304c; margin: 0 0 6px; line-height: 1.15; }
+  .cover .sub { font-size: 13pt; color: #3a4a5a; font-style: italic; margin: 8px 40px 26px; }
+  .cover hr { width: 60px; border: none; border-top: 2px solid #14304c; margin: 0 auto 26px; }
+  .cover .who { font-size: 12.5pt; color: #1c1c1c; } .cover .who b { font-size: 13.5pt; }
+  .cover .date { font-size: 11pt; color: #5a6b7d; margin-top: 3px; }
+  .envbox { margin: 34px auto 0; max-width: 470px; text-align: left; font-size: 9.4pt;
+    border: 1px solid #c9d0d8; border-radius: 4px; padding: 12px 16px; background: #f7f8fa; }
+  .envbox h4 { margin: 0 0 6px; font-size: 9.4pt; letter-spacing: 1px; text-transform: uppercase; color: #5a6b7d; }
+  .envbox table { margin: 0; font-size: 9pt; } .envbox td { border: none; padding: 2px 6px 2px 0; }
+  .envbox td:first-child { color: #14304c; font-weight: bold; white-space: nowrap; width: 78px; }
+  /* ---- toc ---- */
+  .toc { page-break-after: always; }
+  .toc h2 { border: none; }
+  .toc ol { list-style: none; padding: 0; font-size: 10.6pt; }
+  .toc li { margin: 7px 0; border-bottom: 1px dotted #c9d0d8; padding-bottom: 5px; }
+  .toc .n { color: #14304c; font-weight: bold; margin-right: 10px; }
+  .section { page-break-before: auto; }
+</style>
+</head>
+<body>
+
+<!-- ===================== COVER ===================== -->
+<div class="cover">
+  <div class="kicker">Blue Team &middot; Detection Engineering</div>
+  <h1>Building &amp; Validating a<br>Sigma Detection Pack</h1>
+  <div class="sub">Eight MITRE ATT&amp;CK techniques, written once in Sigma, converted to Splunk,<br>and proven against real Atomic Red Team attacks on a home SOC lab</div>
+  <hr>
+  <div class="who"><b>Manea Al-Shabrain</b></div>
+  <div class="who">Cybersecurity Graduate &middot; SOC / Detection Engineering</div>
+  <div class="date">July 2026</div>
+  <div class="envbox">
+    <h4>Lab environment</h4>
+    <table>
+      <tr><td>Network</td><td>VirtualBox, isolated Host-Only, domain <code>SOCLAB</code> (hardened base image)</td></tr>
+      <tr><td>DC01</td><td>Splunk Enterprise - indexer + search head, <code>index=main</code></td></tr>
+      <tr><td>WIN11-01</td><td>Sysmon + Splunk Universal Forwarder, Atomic Red Team &nbsp;(192.168.10.20)</td></tr>
+      <tr><td>KALI-01</td><td>Attacker - NetExec &nbsp;(192.168.10.30)</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===================== TOC ===================== -->
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><span class="n">1</span>What I set out to do</li>
+    <li><span class="n">2</span>How I worked - the detection lifecycle</li>
+    <li><span class="n">3</span>The one-time fight: getting clean data</li>
+    <li><span class="n">4</span>Coverage matrix - the results</li>
+    <li><span class="n">5</span>Rule walk-throughs</li>
+    <li><span class="n" style="visibility:hidden">5</span>5.1&nbsp;&nbsp;Encoded PowerShell (T1059.001)</li>
+    <li><span class="n" style="visibility:hidden">5</span>5.2&nbsp;&nbsp;Scheduled Task - a false negative I caught (T1053.005)</li>
+    <li><span class="n" style="visibility:hidden">5</span>5.3&nbsp;&nbsp;LSASS - when prevention beats detection (T1003.001)</li>
+    <li><span class="n">6</span>Tuning notes</li>
+    <li><span class="n">7</span>Deploying the rules as alerts</li>
+    <li><span class="n">8</span>What I learned</li>
+    <li><span class="n">9</span>Appendix - full technique list &amp; repo</li>
+  </ol>
+</div>
+
+<!-- ===================== 1 ===================== -->
+<div class="section">
+<h2>1&nbsp;&nbsp;What I set out to do</h2>
+<p class="lead">I wanted to build a detection pack the way a detection engineer actually builds one - not by writing a pile of rules and hoping they work, but by running the whole loop end to end. Pick techniques attackers really use, write the logic once in Sigma, convert it to Splunk, then <em>prove</em> each rule catches a live attack and stays quiet on normal activity.</p>
+<p>The scope was eight techniques spread across six ATT&amp;CK tactics, so the pack would read as a complete story rather than a random grab-bag: execution, persistence, privilege escalation, defense evasion, credential access, and impact. Every rule had to be validated against a real attack - mostly Atomic Red Team, with a couple run by hand where the atomics needed to pull payloads my isolated lab couldn&rsquo;t reach. The deliverable is the rule set itself, plus the evidence that each one works and the notes on everything I had to fix along the way.</p>
+<p>Honestly, the fixing is the part I&rsquo;m proudest of. A green checkmark on eight rules is fine, but the three problems I ran into - a rule that missed its own test, a data source that wasn&rsquo;t logging, and an attack the host simply refused to let me run - taught me more than the seven that just worked.</p>
+</div>
+
+<!-- ===================== 2 ===================== -->
+<div class="section">
+<h2>2&nbsp;&nbsp;How I worked - the detection lifecycle</h2>
+<p>I ran the same five steps for every technique. Writing it down like this made it obvious when I was skipping ahead:</p>
+<ol>
+  <li><b>Data source.</b> Which log can even see this behaviour? Sysmon event ID, or a Windows Security event.</li>
+  <li><b>Detection.</b> Write the rule in Sigma - vendor-neutral, so one source converts to any SIEM.</li>
+  <li><b>Test &amp; validate.</b> Run the actual technique and confirm the rule fires on it.</li>
+  <li><b>Tune.</b> Generate normal activity and make sure the rule <em>doesn&rsquo;t</em> fire on that.</li>
+  <li><b>Deploy.</b> Promote the strongest rules to scheduled alerts and track coverage.</li>
+</ol>
+<p>Sigma sits at the centre on purpose. I wrote each rule once in YAML and converted it to Splunk SPL (and Microsoft KQL as a bonus), which is exactly the real workflow - you don&rsquo;t hand-maintain the same logic in three query languages.</p>
+</div>
+
+<!-- ===================== 3 ===================== -->
+<div class="section">
+<h2>3&nbsp;&nbsp;The one-time fight: getting clean data</h2>
+<p>Before a single rule could match anything, I hit a wall that would have quietly broken the entire project. My Sysmon logs were reaching Splunk - 984 process-creation events sitting in the index - but every field I needed was empty. <code>Image</code>, <code>CommandLine</code>, even <code>EventCode</code>: all blank. The events were arriving as raw <code>XmlWinEventLog</code> with nothing parsing the XML into usable fields.</p>
+<p>This is the kind of failure that&rsquo;s dangerous precisely because it&rsquo;s silent: the rule looks correct, the search runs without error, and it just returns nothing. I chased it down to a missing add-on. The Splunk Add-on for Sysmon can&rsquo;t do its job alone - it rides on top of the <b>Splunk Add-on for Microsoft Windows</b>, which is the base parser for the <code>XmlWinEventLog</code> sourcetype. That base add-on wasn&rsquo;t installed on my Splunk box. Once I added it and restarted, the same 984 events came back with real values - <code>Image</code>, <code>CommandLine</code>, <code>ParentImage</code>, all populated. Only then did any detection have a chance of working.</p>
+<blockquote>Lesson I wrote down on the spot: confirm the data source actually sees the behaviour before you trust the rule. No fields, no detection - and it fails without a single error message.</blockquote>
+</div>
+
+<!-- ===================== 4 ===================== -->
+<div class="section">
+<h2>4&nbsp;&nbsp;Coverage matrix - the results</h2>
+<p>Coverage is the headline number in detection engineering, so here it is up front. Eight techniques addressed across six tactics: seven detected, and one <em>prevented</em> outright by the host&rsquo;s own hardening (more on that in 5.3, because it&rsquo;s the most interesting result of the lot).</p>
+<table>
+  <thead><tr><th style="width:26px">#</th><th>Technique</th><th style="width:78px">ATT&amp;CK</th><th>Tactic</th><th style="width:92px">Data source</th><th style="width:78px">Result</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Encoded PowerShell</td><td>T1059.001</td><td>Execution</td><td>Sysmon EID 1</td><td class="det">Detected</td></tr>
+    <tr><td>2</td><td>Registry Run-Key persistence</td><td>T1547.001</td><td>Persistence</td><td>Sysmon EID 13</td><td class="det">Detected</td></tr>
+    <tr><td>3</td><td>LSASS credential access</td><td>T1003.001</td><td>Credential Access</td><td>Sysmon EID 10</td><td class="prev">Prevented</td></tr>
+    <tr><td>4</td><td>Scheduled task creation</td><td>T1053.005</td><td>Persist. / PrivEsc</td><td>Sysmon EID 1</td><td class="det">Detected</td></tr>
+    <tr><td>5</td><td>Create local account</td><td>T1136.001</td><td>Persistence</td><td>Security 4720</td><td class="det">Detected</td></tr>
+    <tr><td>6</td><td>Delete volume shadow copies</td><td>T1490</td><td>Impact</td><td>Sysmon EID 1</td><td class="det">Detected</td></tr>
+    <tr><td>7</td><td>LOLBin abuse (certutil / regsvr32)</td><td>T1218</td><td>Defense Evasion</td><td>Sysmon EID 1</td><td class="det">Detected</td></tr>
+    <tr><td>8</td><td>SMB brute force</td><td>T1110</td><td>Credential Access</td><td>Security 4625</td><td class="det">Detected</td></tr>
+  </tbody>
+</table>
+<p style="text-align:center; font-size:10pt;"><b>7 detected &middot; 1 prevented &middot; 6 tactics &middot; 0 false positives on the benign baseline.</b></p>
+</div>
+
+<!-- ===================== 5 ===================== -->
+<div class="section">
+<h2>5&nbsp;&nbsp;Rule walk-throughs</h2>
+<p>Rather than dump all eight, I&rsquo;ve picked the three that best show how the work actually went: the first clean loop, the rule that failed against its own test, and the one that a hardened host wouldn&rsquo;t let me run at all.</p>
+
+<h3>5.1&nbsp;&nbsp;Encoded PowerShell - T1059.001</h3>
+<p>Attackers base64-encode PowerShell with <code>-EncodedCommand</code> so the real command never shows up in plain text. On execution, Sysmon records a process-creation event (ID 1) with the encoded blob sitting right there in the command line. The Sigma logic is simple - PowerShell as the image, an encoding switch in the command line:</p>
+<pre><span class="k">logsource:</span>
+  product: windows
+  category: process_creation
+<span class="k">detection:</span>
+  selection_img:
+    - Image|endswith: ['\powershell.exe', '\pwsh.exe']
+  selection_flags:
+    CommandLine|contains: [' -enc ', ' -encodedcommand ', ' -ec ', ' -e ']
+  condition: selection_img and selection_flags
+<span class="k">level:</span> high</pre>
+<p>Converted to Splunk and pointed at my lab&rsquo;s index:</p>
+<pre>index=main source="*Sysmon/Operational" EventCode=1
+  (Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+  (CommandLine="* -enc *" OR CommandLine="* -encodedcommand *"
+   OR CommandLine="* -ec *" OR CommandLine="* -e *")
+| table _time host User ParentImage CommandLine</pre>
+<p>I ran a controlled encoded command on WIN11-01 with a harmless payload - the same technique the Atomic tests use, minus the Mimikatz download that would have tripped Defender and needed internet. The detection returned exactly one event, with the encoded string visible in the command line. Then I ran a normal <code>Get-Process</code> and confirmed the search stayed empty. True positive, and clean separation from benign PowerShell.</p>
+<figure><img src="../lab/phase-B-detections/T1059.001-detection-fired.png"><figcaption>Rule 1 firing - the encoded command caught in Splunk, run by <code>SOCLAB\Administrator</code>.</figcaption></figure>
+
+<h3>5.2&nbsp;&nbsp;Scheduled Task - a false negative I caught &middot; T1053.005</h3>
+<p>This is the one I&rsquo;m glad I slowed down on. Scheduled tasks are a favourite for persistence and for running as SYSTEM, so the rule looks for <code>schtasks /create</code> where the task launches something suspicious - a script host, a LOLBin, a user-writable path.</p>
+<p>Before running the atomic I did something simple: I read my own rule against the exact command the test would run. The Atomic test creates its tasks with <code>cmd.exe /c calc.exe</code>. My suspicious-terms list had <code>cmd /c</code> - without the <code>.exe</code>. That one missing detail meant the rule would have returned <b>zero events against its own attack</b> and I&rsquo;d have logged a false &ldquo;not detected.&rdquo; I added <code>cmd.exe</code> to the rule and the SPL, then ran the test:</p>
+<pre>schtasks /create /tn "T1053_005_OnStartup" /sc onstart /ru system /tr "cmd.exe /c calc.exe"
+schtasks /create /tn "T1053_005_OnLogon"   /sc onlogon           /tr "cmd.exe /c calc.exe"</pre>
+<p>Two events came back - and the only term that matched either of them was the <code>cmd.exe</code> I&rsquo;d just added. A rule that silently misses its own test is worse than no rule, because it gives you false confidence. Reading the logic against the literal attack string, not an approximation of it, is what saved this one.</p>
+<figure><img src="../lab/phase-B-detections/T1053.005-detection-fired.png"><figcaption>Rule 4 firing on both scheduled tasks - matched only because <code>cmd.exe</code> was added to the rule first.</figcaption></figure>
+
+<h3>5.3&nbsp;&nbsp;LSASS - when prevention beats detection &middot; T1003.001</h3>
+<p>This technique never gave me a detection, and that turned out to be the most valuable result in the whole project.</p>
+<p>Dumping LSASS memory is how attackers pull credentials. The rule watches Sysmon&rsquo;s ProcessAccess event (ID 10) for a process opening <code>lsass.exe</code> with memory-read rights. First problem: Sysmon wasn&rsquo;t logging EID 10 at all - the config I was using ships ProcessAccess disabled because it&rsquo;s noisy. So I added an include for <code>lsass.exe</code> to the Sysmon config and reloaded it. That fixed the telemetry.</p>
+<p>Then I tried the attack - an LSASS dump using the built-in <code>comsvcs.dll</code>, so nothing needed downloading. It wouldn&rsquo;t run. <code>Access is denied</code>, and not even from the dump itself - <code>cmd.exe</code> couldn&rsquo;t launch the command. My base image is a hardened build, and Attack Surface Reduction was blocking the credential-dump pattern at process creation. I turned Defender&rsquo;s real-time protection off to isolate the cause, and it <em>still</em> refused, which pointed at ASR and LSA Protection (PPL) working together. The attack never reached LSASS, so no EID 10 was ever generated.</p>
+<figure><img src="../lab/phase-B-detections/T1003.001-attack-blocked.png"><figcaption>The LSASS dump refused at launch - blocked by the host&rsquo;s hardening before any telemetry could be produced.</figcaption></figure>
+<p>I recorded this one as <b>prevented</b> rather than forcing a checkmark, and the lesson is the whole point: prevention can erase the very telemetry a detection depends on. On a well-defended host you can&rsquo;t rely on endpoint access logs for LSASS - you pair the detection with the prevention and block events (Defender 1121/1122, ASR audit) as the real signal. That&rsquo;s a more honest and more senior finding than eight identical &ldquo;it fired.&rdquo;</p>
+</div>
+
+<!-- ===================== 6 ===================== -->
+<div class="section">
+<h2>6&nbsp;&nbsp;Tuning notes</h2>
+<p>Most of my tuning wasn&rsquo;t about killing false positives - it was about fixing rules that were subtly wrong before they ever went live. Three changes mattered:</p>
+<table>
+  <thead><tr><th style="width:120px">Rule</th><th>What was wrong</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>T1053.005 Scheduled task</td><td>Only matched <code>cmd /c</code>; the atomic uses <code>cmd.exe /c</code> - a false negative against its own test</td><td>Added <code>cmd.exe</code> (0 &rarr; 2 events)</td></tr>
+    <tr><td>T1136.001 / T1110 (Security log)</td><td>Rule referenced <code>TargetUserName</code>, but this lab&rsquo;s Security channel is classic WinEventLog, where the field is <code>Account_Name</code> / <code>Source_Network_Address</code></td><td>Adapted the SPL; kept the Sigma canonical</td></tr>
+    <tr><td>T1003.001 LSASS</td><td>Sysmon wasn&rsquo;t logging ProcessAccess (EID 10) at all</td><td>Added a <code>lsass.exe</code> include to the Sysmon config</td></tr>
+  </tbody>
+</table>
+<p>The field-name issue is worth calling out. The same technique produces different field names in Splunk depending on the log format - XML-rendered Sysmon versus classic Windows events. The right move is to keep the Sigma rule in its canonical schema and let the query layer adapt, which is exactly why writing in Sigma first pays off.</p>
+<p>Then the false-positive check: I generated a few minutes of ordinary activity on WIN11-01 - process and service queries, opening and closing Notepad and Calc, <code>ipconfig</code>, <code>systeminfo</code>, a <code>gpupdate</code> - and re-ran the rules over that window. Nothing fired. Zero false positives on normal behaviour, which is what earns a rule the right to become an alert.</p>
+</div>
+
+<!-- ===================== 7 ===================== -->
+<div class="section">
+<h2>7&nbsp;&nbsp;Deploying the rules as alerts</h2>
+<p>With the rules validated and the baseline clean, I promoted the three highest-value ones to scheduled Splunk alerts - Encoded PowerShell, Shadow-Copy Deletion, and SMB Brute Force. Each runs every five minutes and triggers when it returns any result. I deliberately left LSASS off the alert list, since it&rsquo;s prevented in this environment and would never fire to demonstrate.</p>
+<p>To prove the deployment actually works end to end, I re-ran the encoded-PowerShell attack after saving the alert and watched it trigger:</p>
+<figure><img src="../lab/phase-D-alerts/alert-encoded-powershell-fired.png"><figcaption>The Encoded-PowerShell alert with a live entry in its trigger history - a validated rule promoted to a working alert.</figcaption></figure>
+<p>The order here matters, and I got it right the second time: you tune <em>before</em> you deploy. An alert is just a rule that now runs on its own and pages an analyst - deploying one you haven&rsquo;t confirmed is quiet just schedules noise.</p>
+</div>
+
+<!-- ===================== 8 ===================== -->
+<div class="section">
+<h2>8&nbsp;&nbsp;What I learned</h2>
+<ul>
+  <li><b>A rule that doesn&rsquo;t fire on its own atomic test is worse than no rule.</b> Reading each rule against the exact attack command line - not &ldquo;close enough&rdquo; - is what caught the <code>cmd.exe</code> false negative I&rsquo;d otherwise have shipped.</li>
+  <li><b>Prevention can erase detection telemetry.</b> On the hardened host, ASR and LSA Protection stopped the LSASS attack before Sysmon ever saw it. Endpoint detection needs prevention and block events as a complement, not a substitute.</li>
+  <li><b>One Sigma source scales to many SIEMs, but field names still bite.</b> The same technique surfaces different fields by log format; keeping Sigma canonical and adapting at the SPL/KQL layer is the workflow that holds up.</li>
+  <li><b>Telemetry gaps are silent failures.</b> The LSASS rule was fine - the data source just wasn&rsquo;t logging. No error, no results, no clue unless you check.</li>
+</ul>
+</div>
+
+<!-- ===================== 9 ===================== -->
+<div class="section">
+<h2>9&nbsp;&nbsp;Appendix</h2>
+<h3>All eight techniques and how each was tested</h3>
+<table>
+  <thead><tr><th style="width:74px">ATT&amp;CK</th><th>Attack used to validate</th><th style="width:70px">Result</th></tr></thead>
+  <tbody>
+    <tr><td>T1059.001</td><td>Controlled <code>powershell -EncodedCommand</code> (benign payload)</td><td class="det">Detected</td></tr>
+    <tr><td>T1547.001</td><td><code>Invoke-AtomicTest T1547.001 -TestNumbers 1</code> (Run-key write)</td><td class="det">Detected</td></tr>
+    <tr><td>T1003.001</td><td><code>comsvcs.dll</code> MiniDump of LSASS</td><td class="prev">Prevented</td></tr>
+    <tr><td>T1053.005</td><td><code>Invoke-AtomicTest T1053.005</code> (scheduled tasks)</td><td class="det">Detected</td></tr>
+    <tr><td>T1136.001</td><td><code>Invoke-AtomicTest T1136.001</code> (create user)</td><td class="det">Detected</td></tr>
+    <tr><td>T1490</td><td><code>vssadmin delete shadows /all /quiet</code></td><td class="det">Detected</td></tr>
+    <tr><td>T1218</td><td>Manual certutil (encode/decode/urlcache) + regsvr32 squiblydoo</td><td class="det">Detected</td></tr>
+    <tr><td>T1110</td><td>NetExec SMB brute force from Kali (8 attempts)</td><td class="det">Detected</td></tr>
+  </tbody>
+</table>
+<h3>Repository</h3>
+<pre>Detection-Engineering-Sigma-Splunk/
+  rules/               8 Sigma rules (the deliverable)
+  spl/detections.spl   converted Splunk searches
+  kql/detections.kql   converted Microsoft KQL (bonus)
+  coverage-matrix.md   technique -> rule -> test -> result
+  report/              this report
+  lab/                 full journal + phased screenshot evidence
+    phase-A..D/          prerequisites, detections, tuning, alerts</pre>
+<p style="margin-top:14px; color:#5a6b7d; font-size:9pt; text-align:center;">Everything in this report is reproducible from the repository&rsquo;s <code>RUNBOOK.md</code>. All screenshots are the author&rsquo;s own, captured during the lab.</p>
+</div>
+
+</body>
+</html>

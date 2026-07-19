@@ -1,0 +1,29 @@
+# Phase B - Detection Loop (8 techniques)
+
+For each: run the atomic → run the matching SPL from
+[`../../spl/detections.spl`](../../spl/detections.spl) → confirm it fires → check no
+false positive → screenshot **here**. Naming: `<ATTACK-ID>-detection-fired.png`.
+
+| # | ATT&CK | Atomic test | SPL | Detected | Screenshot (save here) | Date |
+|---|--------|-------------|:---:|:--------:|------------------------|------|
+| 1 | T1059.001 Encoded PowerShell | controlled `-EncodedCommand` (offline) | [1] | ✅ 1 event · TP | `T1059.001-detection-fired.png` | 2026-07-18 |
+| 2 | T1547.001 Run-Key persistence | `Invoke-AtomicTest T1547.001 -TestNumbers 1` | [2] | ✅ 1 event · TP | `T1547.001-detection-fired.png` | 2026-07-18 |
+| 3 | T1003.001 LSASS access | comsvcs.dll MiniDump (manual) | [3] | 🛡️ prevented | `T1003.001-attack-blocked.png` | 2026-07-18 |
+| 4 | T1053.005 Scheduled task | `Invoke-AtomicTest T1053.005 -TestNumbers 1` | [4] | ✅ 2 events · TP | `T1053.005-detection-fired.png` | 2026-07-18 |
+| 5 | T1136.001 Local account | `Invoke-AtomicTest T1136.001` (all Windows tests) | [5] | ✅ 3 events · TP | `T1136.001-detection-fired.png` | 2026-07-18 |
+| 6 | T1490 Delete shadow copies | `Invoke-AtomicTest T1490 -TestNumbers 1` | [6] | ✅ 1 event · TP | `T1490-detection-fired.png` | 2026-07-18 |
+| 7 | T1218 LOLBin abuse | manual certutil + regsvr32 (offline) | [7] | ✅ 4 events · TP | `T1218-detection-fired.png` | 2026-07-18 |
+| 8 | T1110 Brute force | NetExec SMB (Kali → WIN11, user "hacker") | [8] | ✅ 8 fails · TP | `T1110-detection-fired.png` | 2026-07-18 |
+
+> After #3 (LSASS) and #6 (shadow copies) run `Invoke-AtomicTest <ID> -Cleanup` and
+> consider reverting the snapshot.
+
+**Per-technique notes** _(what the event looked like, any FP seen):_
+- **#1 T1059.001 (2026-07-18):** used a controlled `-EncodedCommand` (benign payload) rather than the built-in atomics (#1 Mimikatz / #2 BloodHound download payloads, trip Defender, need internet). Detection returned **1 event** - `powershell.exe -EncodedCommand VwByAGkA...`, User `SOCLAB\Administrator`, parent `powershell.exe`. Negative test `Get-Process` → no match. ✅ TP, no FP.
+- **#2 T1547.001 (2026-07-18):** real atomic `Invoke-AtomicTest T1547.001 -TestNumbers 1` ("Reg Key Run"). Sysmon **EID 13** detection returned **1 event** - `reg.exe` wrote `HKU\...\CurrentVersion\Run\Atomic Red Team` = `C:\Path\AtomicRedTeam.exe`. ✅ TP. Confirms the registry telemetry pipe works end-to-end.
+- **#4 T1053.005 (2026-07-18):** atomic `-TestNumbers 1` ("Scheduled Task Startup Script") created `T1053_005_OnLogon` + `T1053_005_OnStartup`. Detection returned **2 events** - `schtasks /create ... /tr "cmd.exe /c calc.exe"`, parent `cmd.exe`. ✅ TP. **Tuning win:** the rule's suspicious list originally had only `cmd /c`, but the atomic uses `cmd.exe /c` - it would have returned **0 events (false negative)** against its own test. Added `cmd.exe` before running; that single term is the one that matched.
+- **#6 T1490 (2026-07-18):** atomic `-TestNumbers 1` ran `vssadmin.exe delete shadows /all /quiet`. The command **failed** - "No items found that satisfy the query", exit code 1 (no shadow copies existed) - yet the detection still returned **1 event**. ✅ TP. Key insight: the rule matches the *behaviour* (process + command line), not the outcome, so ransomware is caught on the **attempt**, before encryption. A rule keyed on successful deletion would have missed it.
+- **#5 T1136.001 (2026-07-18):** `-TestNumbers 1` found **0 applicable tests** - atomic numbers span all platforms and #1 is Linux/macOS; the Windows tests are 4, 5, 8, 9. Running `Invoke-AtomicTest T1136.001` with no `-TestNumbers` auto-selects the platform's tests. Detection returned **3 events** (`T1136.001_CMD`, `_PowerShell`, `_Admin`). ✅ TP. Also required `auditpol /set /subcategory:"User Account Management" /success:enable` - account creation is not audited by default. **Field mapping:** this lab's Security channel is classic WinEventLog (no `renderXml`), so Splunk exposes `Account_Name`, **not** `TargetUserName`. SPL [5] and [8] were adapted; the Sigma rules keep the canonical Windows schema (that translation is the converter's job).
+- **#7 T1218 (2026-07-18):** T1218 atomics need remote payloads (blocked offline), so ran the real LOLBin invocations manually: `certutil -encode/-decode` (succeeded), `certutil -urlcache` + `regsvr32 /i:http ... scrobj.dll` (failed to resolve, as expected). Detection returned **4 events** - 3× `certutil.exe`, 1× `regsvr32.exe`. ✅ TP. `ParentImage=powershell.exe` on all four - the parent-process pivot for FP tuning in prod (certutil under Office/PowerShell is the real signal).
+- **#3 T1003.001 (2026-07-18) - PREVENTED, not detected:** Enabled Sysmon **ProcessAccess (EID 10)** - a real telemetry gap (the SwiftOnSecurity config ships it disabled). Attempted an LSASS dump via built-in `comsvcs.dll MiniDump`. On this hardened host (`Phase09-Complete-PreHardening` base) the command was **blocked at process launch by Attack Surface Reduction** - even with Defender real-time protection off - and LSA Protection (PPL) hardens LSASS further. Result: **no EID 10 generated, because prevention stopped the attack before it reached LSASS.** Lesson: *prevention can erase the very telemetry a detection depends on - LSASS coverage must be paired with prevention/block events (Defender 1121/1122, ASR audit).* Rule + telemetry validated; attack defensively neutralised.
+- **#8 T1110 (2026-07-18):** NetExec SMB brute force from Kali (192.168.10.30) → WIN11-01 (192.168.10.20), user "hacker", 8 bad passwords → 8× event 4625 (Logon_Type 3). Threshold aggregation (≥5 fails / 5 min by source IP) returned **1 row** - 192.168.10.30, failures=8. ✅ TP. Enabled "Logon" failure auditing first; field is `Source_Network_Address` (classic WinEventLog).

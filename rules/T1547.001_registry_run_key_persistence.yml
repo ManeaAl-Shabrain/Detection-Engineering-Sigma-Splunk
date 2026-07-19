@@ -1,0 +1,34 @@
+title: Registry Run Key / Startup Folder Persistence
+id: 2b6d4e88-9a13-4c7f-b0e2-5f8a1c3d6e90
+status: experimental
+description: |
+  Detects the creation or modification of an autorun registry value under a
+  CurrentVersion\Run / RunOnce key. Writing an executable path here makes it launch
+  on user logon or boot, a classic and durable persistence mechanism.
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+author: Manea Al-Shabrain
+date: 2026-07-14
+tags:
+  - attack.persistence
+  - attack.t1547.001
+logsource:
+  product: windows
+  category: registry_set
+detection:
+  selection:
+    TargetObject|contains:
+      - '\Software\Microsoft\Windows\CurrentVersion\Run\'
+      - '\Software\Microsoft\Windows\CurrentVersion\RunOnce\'
+      - '\Software\Microsoft\Windows\CurrentVersion\RunServices\'
+      - '\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Run\'
+      - '\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run\'
+      - '\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Startup'
+  condition: selection
+fields:
+  - Image
+  - TargetObject
+  - Details
+falsepositives:
+  - Legitimate installers and updaters write Run keys. Baseline the software in your environment and exclude signed installers / known vendors by Image.
+level: medium

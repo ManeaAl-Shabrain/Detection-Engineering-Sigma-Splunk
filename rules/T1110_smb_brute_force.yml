@@ -1,0 +1,29 @@
+title: Multiple Failed Logons From a Single Source (Brute Force)
+id: 8c3e0a29-5b41-4df7-92a6-0e1f7b4c8d52
+status: experimental
+description: |
+  Detects a burst of failed authentication attempts (Security event 4625) from one source
+  address within a short window, indicating password brute forcing or spraying against
+  SMB/RDP/WinRM. Reuse target for the NetExec/Hydra attack from the SOC lab.
+references:
+  - https://attack.mitre.org/techniques/T1110/
+author: Manea Al-Shabrain
+date: 2026-07-14
+tags:
+  - attack.credential_access
+  - attack.t1110
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+  timeframe: 5m
+  condition: selection | count() by IpAddress >= 5
+fields:
+  - IpAddress
+  - TargetUserName
+  - LogonType
+falsepositives:
+  - A user with a stale cached credential (e.g. after a password change) can generate repeated 4625s from one host. Whitelist known service accounts and jump hosts, and raise the threshold if your baseline is noisy.
+level: medium

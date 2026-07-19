@@ -1,0 +1,28 @@
+title: Local Account Created
+id: 5a8c3e10-7f2d-4b96-a0e4-1c6d9b3f2078
+status: experimental
+description: |
+  Detects creation of a new local (or domain) user account via Windows Security event 4720.
+  Attackers create accounts to establish durable, credentialed access that survives password
+  resets on the accounts they originally compromised.
+references:
+  - https://attack.mitre.org/techniques/T1136/001/
+author: Manea Al-Shabrain
+date: 2026-07-14
+tags:
+  - attack.persistence
+  - attack.t1136.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4720
+  condition: selection
+fields:
+  - TargetUserName
+  - SubjectUserName
+  - SubjectDomainName
+falsepositives:
+  - Legitimate IT provisioning and onboarding create accounts. Correlate with change tickets; alert with higher priority when the creator (SubjectUserName) is not a known admin or when creation happens outside business hours.
+level: medium

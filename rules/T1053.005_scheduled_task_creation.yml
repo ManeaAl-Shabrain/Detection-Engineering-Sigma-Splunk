@@ -1,0 +1,42 @@
+title: Scheduled Task Creation via schtasks.exe
+id: 9d0f2c47-6a1b-48e3-bc59-3e7f1a2d4b86
+status: experimental
+description: |
+  Detects creation of a Windows scheduled task from the command line with schtasks.exe /create.
+  Attackers use scheduled tasks for persistence and for privilege escalation (running as SYSTEM),
+  frequently pointing them at scripting hosts or LOLBins.
+references:
+  - https://attack.mitre.org/techniques/T1053/005/
+author: Manea Al-Shabrain
+date: 2026-07-14
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.t1053.005
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    Image|endswith: '\schtasks.exe'
+    CommandLine|contains: '/create'
+  suspicious:
+    CommandLine|contains:
+      - '\AppData\'
+      - '\Users\Public\'
+      - '\Temp\'
+      - 'powershell'
+      - 'cmd.exe'
+      - 'cmd /c'
+      - 'mshta'
+      - 'rundll32'
+      - 'regsvr32'
+      - '-enc'
+  condition: selection and suspicious
+fields:
+  - User
+  - ParentImage
+  - CommandLine
+falsepositives:
+  - Administrators and software installers create scheduled tasks. The suspicious block scopes the alert to tasks that launch from user-writable paths or scripting hosts; remove it to see all task creation for baselining.
+level: medium
